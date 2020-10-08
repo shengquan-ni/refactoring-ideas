@@ -1,6 +1,9 @@
 package engine.common
 
 
+import engine.common.api.field.{IField, IntegerField, ListField}
+import engine.common.api.schema.Schema
+
 import collection.JavaConverters._
 import scala.util.hashing.MurmurHash3
 
@@ -8,12 +11,11 @@ object Tuple{
   def apply(values: Any*): Tuple = new AmberTuple(values.toArray)
   def fromSeq(values: Seq[Any]): Tuple = new AmberTuple(values.toArray)
   def fromIterable(values: Iterable[Any]): Tuple = new AmberTuple(values.toArray)
-  def fromJavaStringIterable(values: java.lang.Iterable[String]):Tuple = new AmberTuple(values.asScala.toArray)
   def fromJavaArray(values: Array[Any]) = new AmberTuple(values)
-  def fromJavaStringArray(values: Array[String],types:Array[FieldType.Value]) = new AmberTuple(values,types)
-  def fromJavaStringIterable(values: java.lang.Iterable[String],types:Array[FieldType.Value]) = new AmberTuple(values.asScala.toArray,types)
   def fromJavaList(values: java.util.List[Any]):Tuple = new AmberTuple(values.asScala.toArray)
   val empty = apply()
+
+
 }
 
 trait Tuple extends Serializable{
@@ -80,30 +82,8 @@ trait Tuple extends Serializable{
         return false
       }
       if (!isNullAt(i)) {
-        val o1 = get(i)
-        val o2 = other.get(i)
-        o1 match {
-          case b1: Array[Byte] =>
-            if (!o2.isInstanceOf[Array[Byte]] ||
-              !java.util.Arrays.equals(b1, o2.asInstanceOf[Array[Byte]])) {
-              return false
-            }
-          case f1: Float if java.lang.Float.isNaN(f1) =>
-            if (!o2.isInstanceOf[Float] || ! java.lang.Float.isNaN(o2.asInstanceOf[Float])) {
-              return false
-            }
-          case d1: Double if java.lang.Double.isNaN(d1) =>
-            if (!o2.isInstanceOf[Double] || ! java.lang.Double.isNaN(o2.asInstanceOf[Double])) {
-              return false
-            }
-          case d1: java.math.BigDecimal if o2.isInstanceOf[java.math.BigDecimal] =>
-            if (d1.compareTo(o2.asInstanceOf[java.math.BigDecimal]) != 0) {
-              return false
-            }
-          case _ => if (o1 != o2) {
-            return false
-          }
-        }
+        if(!get(i).equals(other.get(i)))
+          return false
       }
       i += 1
     }

@@ -3,6 +3,19 @@ package engine.common
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
+object OrderingEnforcer{
+  def reorderMessage[V: ClassTag](seqMap:mutable.AnyRefMap[AmberIdentifier,OrderingEnforcer[V]], sender: AmberIdentifier, seq:Long, command: V): Iterable[V] ={
+    val entry = seqMap.getOrElseUpdate(sender,new OrderingEnforcer[V]())
+    if(entry.ifDuplicated(seq)){
+      Iterable.empty
+    }else{
+      entry.enforceFIFO(seq,command)
+    }
+  }
+}
+
+
+
 class OrderingEnforcer[T:ClassTag] {
 
   var current = 0L
@@ -10,7 +23,7 @@ class OrderingEnforcer[T:ClassTag] {
 
   def ifDuplicated(sequenceNumber:Long):Boolean = sequenceNumber < current
 
-  def pushAndRelease(sequenceNumber:Long, data:T): Array[T] ={
+  def enforceFIFO(sequenceNumber:Long, data:T): Array[T] ={
     if(sequenceNumber == current){
       val res = mutable.ArrayBuffer[T](data)
       current += 1
