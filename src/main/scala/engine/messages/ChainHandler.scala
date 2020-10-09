@@ -21,7 +21,7 @@ trait ChainHandler extends WorkerControlHandler {
         remotePromise(nexts.head, Chain(nexts.drop(1))).onComplete{
           x:AmberIdentifier =>
             println(s"chain returns from $x")
-            returning(getLocalIdentifier)
+            returning(x)
         }
       }
   }
