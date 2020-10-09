@@ -2,7 +2,7 @@ package engine.core
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import engine.common.{AmberIdentifier, AmberRemoteIdentifier}
-import engine.messages.AmberEvent
+import engine.messages.{AmberEvent, ChainHandler, CollectHandler, NestedHandler, PingPongHandler, RecursionHandler}
 
 import scala.collection.mutable
 
@@ -10,7 +10,9 @@ import scala.collection.mutable
 
 abstract class AmberActor(val amberID:AmberIdentifier) extends Actor with ActorLogging
 
-class Controller(amberID:AmberIdentifier) extends AmberActor(amberID) with ControlInputChannel with ControlOutputChannel with AmberNetworkOutputLayer with ControlScheduler {
+class Controller(amberID:AmberIdentifier) extends AmberActor(amberID)
+  with ControlInputChannel with ControlOutputChannel with AmberNetworkOutputLayer with ControlScheduler
+  with NestedHandler with CoreProcessingUnit with PingPongHandler with RecursionHandler with CollectHandler with ChainHandler {
 
   def ignoreOthers:Receive = {
     case msg =>

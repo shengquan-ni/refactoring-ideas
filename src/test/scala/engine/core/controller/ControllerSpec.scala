@@ -9,7 +9,7 @@ import engine.common.{ActorIdentifier, AmberIdentifier, OperatorIdentifier, Work
 import engine.core.AmberNetworkOutputLayer.{QueryActorRef, ReplyActorRef}
 import engine.core.ControlInputChannel.AmberControlMessage
 import engine.core.{ControlScheduler, Controller}
-import engine.messages.{AmberPromise, CollectPromise, ControlEvent, NestedPromise, Ping, PromiseContext, PromiseEvent, RecursivePromise, ReturnEvent}
+import engine.messages.{AmberPromise, Chain, Collect, Nested, Ping, PromiseContext, PromiseEvent, Recursion, ReturnEvent}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -52,18 +52,27 @@ class ControllerSpec extends TestKit(ActorSystem("ControllerSpec")) with AnyWord
 
 
   "controller" should{
+
     "execute Ping Pong" in {
-      testCallEvent(2, new Ping(1, ActorIdentifier(0), ActorIdentifier(1)),5)
+      testCallEvent(2, Ping(1, ActorIdentifier(1)),5)
     }
+
+    "execute Chain" in {
+      testCallEvent(10, Chain((1 to 9).map(ActorIdentifier(_))), ActorIdentifier(0))
+    }
+
     "execute Collect" in {
-      testCallEvent(6, new CollectPromise((1 to 5).map(ActorIdentifier(_))),"finished")
+      testCallEvent(4, Collect((1 to 3).map(ActorIdentifier(_))),"finished")
     }
+
     "execute RecursiveCall" in {
-      testCallEvent(1, new RecursivePromise(0), "finished")
+      testCallEvent(1, Recursion(0), "0")
     }
+
     "execute NestedCall" in {
-      testCallEvent(1, new NestedPromise(ActorIdentifier(0)), "Hello World!")
+      testCallEvent(1, Nested(5), "Hello World!")
     }
+
   }
 
 }

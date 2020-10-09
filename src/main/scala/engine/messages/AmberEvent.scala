@@ -9,7 +9,6 @@ import engine.core.ControlScheduler
 import scala.collection.mutable
 import scala.concurrent.Future
 
-
 //base type of all events
 trait AmberEvent extends Serializable
 
@@ -34,27 +33,18 @@ case class GroupedFutures(amberFutures:AmberFuture*)(implicit scheduler: Control
   }
 }
 
-trait AmberPromise{
-  def invoke()(implicit context:PromiseContext, scheduler:ControlScheduler):Unit
-
-  final def remotePromise(to:AmberIdentifier, cmd:AmberPromise)(implicit context:PromiseContext, scheduler:ControlScheduler): AmberFuture = scheduler.remotePromise(to, cmd)
-
-  final def localPromise(cmd:AmberPromise)(implicit context:PromiseContext, scheduler:ControlScheduler): AmberFuture = scheduler.localPromise(cmd)
-
-  final def returning(value: Any)(implicit context:PromiseContext, scheduler:ControlScheduler): Unit = scheduler.returning(value)
-}
-
+trait AmberPromise
 
 case class PromiseEvent(context:PromiseContext, call: AmberPromise) extends ControlEvent
 
-case class AfterCompletion[T](f: T => Unit){
+case class AfterCompletion[T](context: PromiseContext, f: T => Unit){
   def invoke(scheduler: ControlScheduler, returnValue: Any): Unit = {
     f(returnValue.asInstanceOf[T])
   }
 }
 
 
-case class AfterGroupCompletion[T](id:Seq[Long], f: Seq[T] => Unit){
+case class AfterGroupCompletion[T](context: PromiseContext, id:Seq[Long], f: Seq[T] => Unit){
 
   val returnValues:mutable.ArrayBuffer[T] = mutable.ArrayBuffer[T]()
   val expectedIds:mutable.HashSet[Long] = mutable.HashSet[Long](id:_*)

@@ -13,22 +13,31 @@ trait ControlScheduler {
   private val afterComplete = mutable.LongMap[AfterCompletion[_]]()
   private val afterGroupComplete = mutable.HashSet[AfterGroupCompletion[_]]()
   private var ID = 0L
+  private var controlContext:PromiseContext = _
 
-  def schedule(cmd:ControlEvent): Unit = {
-    cmd match{
+  var promiseHandler:PartialFunction[AmberPromise, Unit] = {
+    case promise =>
+      log.info(s"discarding $promise")
+  }
+
+  def schedule(event: ControlEvent): Unit = {
+    event match{
       case ret:ReturnEvent =>
         if(afterComplete.contains(ret.context.id)){
+          controlContext = afterComplete(ret.context.id).context
           afterComplete(ret.context.id).invoke(this,ret.returnValue)
           afterComplete.remove(ret.context.id)
         }
         for(i <- afterGroupComplete){
           if(i.takeReturnValue(ret)){
+            controlContext = i.context
             i.invoke(this)
             afterGroupComplete.remove(i)
           }
         }
       case remoteCall: PromiseEvent =>
-        remoteCall.call.invoke()(remoteCall.context,this)
+        controlContext = event.context
+        promiseHandler(remoteCall.call)
     }
   }
 
@@ -44,17 +53,17 @@ trait ControlScheduler {
     remotePromise(amberID,cmd)
   }
 
-  def returning(value:Any)(implicit context:PromiseContext): Unit ={
-    sendTo(context.sender, ReturnEvent(context,value))
+  def returning(value:Any): Unit ={
+    sendTo(controlContext.sender, ReturnEvent(controlContext,value))
   }
 
 
   def callAfterComplete[T](id:Long, cmd:T => Unit): Unit = {
-    afterComplete(id) = AfterCompletion(cmd)
+    afterComplete(id) = AfterCompletion(controlContext, cmd)
   }
 
   def callAfterGroupComplete[T](ids:Seq[Long], cmd: Seq[T] => Unit):Unit = {
-    afterGroupComplete.add(AfterGroupCompletion(ids, cmd))
+    afterGroupComplete.add(AfterGroupCompletion(controlContext, ids, cmd))
   }
 
   def getLocalIdentifier:AmberIdentifier = amberID
