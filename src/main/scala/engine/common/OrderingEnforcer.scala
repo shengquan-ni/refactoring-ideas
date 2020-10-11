@@ -1,5 +1,7 @@
 package engine.common
 
+import engine.common.identifier.AmberIdentifier
+
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
