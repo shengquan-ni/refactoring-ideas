@@ -2,7 +2,7 @@ package engine.core.control.promise.utils
 
 import engine.common.identifier.AmberIdentifier
 import engine.core.control.promise.utils.PingPongHandler.{Ping, Pong}
-import engine.core.control.promise.{AmberPromise, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
 
 object PingPongHandler{
   case class Ping(i:Int, to:AmberIdentifier) extends AmberPromise[Int]
@@ -11,7 +11,7 @@ object PingPongHandler{
 }
 
 
-trait PingPongHandler extends PromiseTesterControlHandler {
+trait PingPongHandler extends PromiseHandler {
   this: PromiseManager =>
 
   registerHandler{

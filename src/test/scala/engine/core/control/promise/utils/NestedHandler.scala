@@ -1,7 +1,7 @@
 package engine.core.control.promise.utils
 
 import engine.core.control.promise.utils.NestedHandler.{Nested, Pass}
-import engine.core.control.promise.{AmberPromise, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
 
 object NestedHandler{
   case class Nested(k:Int) extends AmberPromise[String]
@@ -10,8 +10,8 @@ object NestedHandler{
 }
 
 
-trait NestedHandler extends PromiseTesterControlHandler {
-  this: PromiseManager =>
+trait NestedHandler extends PromiseHandler {
+  this: PromiseManager with DummyStateComponent =>
 
   registerHandler{
     case Nested(k) =>

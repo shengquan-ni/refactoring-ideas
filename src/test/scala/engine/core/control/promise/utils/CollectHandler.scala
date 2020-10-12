@@ -3,12 +3,12 @@ package engine.core.control.promise.utils
 import engine.common.identifier.AmberIdentifier
 import engine.core.control.promise.utils.CollectHandler.Collect
 import engine.core.control.promise.utils.NestedHandler.Pass
-import engine.core.control.promise.{AmberPromise, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
 object CollectHandler{
   case class Collect(workers:Seq[AmberIdentifier]) extends AmberPromise[String]
 }
 
-trait CollectHandler extends PromiseTesterControlHandler {
+trait CollectHandler extends PromiseHandler {
   this: PromiseManager =>
 
   registerHandler {

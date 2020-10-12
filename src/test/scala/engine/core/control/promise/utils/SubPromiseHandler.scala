@@ -5,14 +5,14 @@ import engine.core.control.promise.utils.ChainHandler.Chain
 import engine.core.control.promise.utils.CollectHandler.Collect
 import engine.core.control.promise.utils.RecursionHandler.Recursion
 import engine.core.control.promise.utils.SubPromiseHandler.PromiseInvoker
-import engine.core.control.promise.{AmberPromise, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
 
 object SubPromiseHandler{
   case class PromiseInvoker(seq:Seq[AmberIdentifier]) extends AmberPromise[String]
 }
 
 
-trait SubPromiseHandler extends PromiseTesterControlHandler {
+trait SubPromiseHandler extends PromiseHandler {
   this: PromiseManager =>
 
   registerHandler{

@@ -2,7 +2,7 @@ package engine.core.control.promise.utils
 
 import engine.common.identifier.AmberIdentifier
 import engine.core.control.promise.utils.NoReturnHandler.{NoReturn, NoReturnInvoker}
-import engine.core.control.promise.{AmberPromise, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
 
 object NoReturnHandler{
 
@@ -13,7 +13,7 @@ object NoReturnHandler{
 
 
 
-trait NoReturnHandler extends PromiseTesterControlHandler {
+trait NoReturnHandler extends PromiseHandler {
   this: PromiseManager =>
 
   registerHandler{

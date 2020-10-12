@@ -3,6 +3,7 @@ package engine.core.control.promise
 import engine.common.identifier.AmberIdentifier
 import engine.core.AmberActor
 import engine.core.control.ControlOutputChannel
+import engine.utils.Lockable
 
 import scala.collection.mutable
 
@@ -13,10 +14,22 @@ trait PromiseManager {
   private val afterGroupComplete = mutable.HashSet[AfterGroupCompletion[_]]()
   private var ID = 0L
   private var promiseContext:PromiseContext = _
+  private val stashedInvocations = mutable.HashSet[PromiseInvocation]()
+  private val unResolvedPromiseMap = mutable.AnyRefMap[PromiseContext, AmberPromise[_]]()
 
   var promiseHandler:PartialFunction[AmberPromise[_], Unit] = {
     case promise =>
       log.info(s"discarding $promise")
+  }
+
+  var prerequisiteHandler:PartialFunction[AmberPromise[_],Boolean] = {
+    case withoutPrerequisite =>
+      true
+  }
+
+  var cleanupHandler:PartialFunction[AmberPromise[_],Unit] = {
+    case noCleanup =>
+      // do nothing
   }
 
   def scheduleInternal(event: PromiseEvent): Unit = {
@@ -34,9 +47,14 @@ trait PromiseManager {
             afterGroupComplete.remove(i)
           }
         }
-      case invocation: PromiseInvocation =>
-        promiseContext = event.context
-        promiseHandler(invocation.call)
+      case p: PromiseInvocation =>
+        promiseContext = p.context
+        if(prerequisiteHandler(p.call)){
+          unResolvedPromiseMap(p.context) = p.call
+          promiseHandler(p.call)
+        }else{
+          stashedInvocations.addOne(p)
+        }
     }
   }
 
@@ -69,11 +87,43 @@ trait PromiseManager {
   def returning(value:Any): Unit ={
     // returning should be used at most once per context
     if(promiseContext != null){
-      sendTo(promiseContext.sender, ReturnEvent(promiseContext,value))
-      promiseContext = null
+      val current = promiseContext
+      sendTo(current.sender, ReturnEvent(current,value))
+      cleanupHandler(unResolvedPromiseMap(current))
+      unResolvedPromiseMap.remove(current)
     }
   }
 
   def getLocalIdentifier:AmberIdentifier = amberID
+
+
+  def tryLock(states:Lockable*): Boolean ={
+    if(states.exists(_.isLocked)){
+      false
+    }else{
+      states.foreach(_.lock(promiseContext))
+      true
+    }
+  }
+
+  def unlock(states:Lockable*):Unit ={
+    assert(states.forall(_.getOwner == promiseContext))
+    states.foreach(_.unlock())
+    scheduleDelayedPromises()
+  }
+
+  private def scheduleDelayedPromises(): Unit ={
+    val toRemove = mutable.ArrayBuffer[PromiseInvocation]()
+    stashedInvocations.foreach{
+      p =>
+        promiseContext = p.context
+        if(prerequisiteHandler(p.call)){
+          toRemove.addOne(p)
+          unResolvedPromiseMap(p.context) = p.call
+          promiseHandler(p.call)
+        }
+    }
+    stashedInvocations --= toRemove
+  }
 
 }

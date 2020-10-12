@@ -23,7 +23,6 @@ trait PauseSupport{
 
   def isDpThreadReadyToStart: Boolean = dpThreadOuterPauseLevel == No && !isDpThreadRunning
 
-
   def tryReleaseOuterPauseLevel(resumeLevel:Int):Boolean ={
     if(resumeLevel == No)return false
     if(resumeLevel >= dpThreadOuterPauseLevel) {

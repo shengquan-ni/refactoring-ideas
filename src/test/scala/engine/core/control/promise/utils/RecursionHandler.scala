@@ -1,13 +1,13 @@
 package engine.core.control.promise.utils
 
 import engine.core.control.promise.utils.RecursionHandler.Recursion
-import engine.core.control.promise.{AmberPromise, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
 
 object RecursionHandler{
   case class Recursion(i:Int) extends AmberPromise[String]
 }
 
-trait RecursionHandler extends PromiseTesterControlHandler {
+trait RecursionHandler extends PromiseHandler {
   this: PromiseManager =>
 
   registerHandler{
