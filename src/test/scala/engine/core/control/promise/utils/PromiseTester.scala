@@ -9,7 +9,7 @@ import engine.core.network.AmberNetworkOutputLayer
 class PromiseTester(val amberID:AmberIdentifier) extends AmberActor
   with ControlInputChannel with ControlOutputChannel with AmberNetworkOutputLayer with PromiseManager
   with NestedHandler with PingPongHandler with RecursionHandler with CollectHandler with ChainHandler
-  with SubPromiseHandler with NoReturnHandler with DummyStateComponent with BlockHandler with DeadLockHandler {
+  with SubPromiseHandler with NoReturnHandler with DummyStateComponent {
 
   def ignoreOthers:Receive = {
     case msg =>

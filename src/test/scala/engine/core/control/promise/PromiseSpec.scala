@@ -15,8 +15,6 @@ import engine.core.control.promise.utils.RecursionHandler.Recursion
 import engine.core.control.promise.utils.SubPromiseHandler.PromiseInvoker
 import engine.core.control.promise.utils.{ChainHandler, CollectHandler, NestedHandler, NoReturnHandler, PingPongHandler, PromiseTester, RecursionHandler, SubPromiseHandler}
 import engine.core.AmberActor
-import engine.core.control.promise.utils.BlockHandler.{Block, NonBlock}
-import engine.core.control.promise.utils.DeadLockHandler.DeadLock
 import engine.core.network.AmberNetworkOutputLayer
 import engine.core.network.AmberNetworkOutputLayer.{QueryActorRef, ReplyActorRef}
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -45,10 +43,14 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     var seqNum = 0
     event.foreach{
       evt =>
-        probe.send(idMap(ActorIdentifier(0)), AmberControlMessage(AmberIdentifier.Client,seqNum,seqNum, PromiseInvocation(PromiseContext(AmberIdentifier.Client,seqNum),evt)))
+        probe.send(idMap(ActorIdentifier(0)), AmberControlMessage(AmberIdentifier.Client,seqNum,seqNum, PromiseInvocation(mkPromiseContext(evt,seqNum),evt)))
         seqNum += 1
     }
     (probe,idMap)
+  }
+
+  def mkPromiseContext(cmd:AmberPromise[_], seqNum:Int):PromiseContext = {
+     PromiseContext(AmberIdentifier.Client, seqNum)
   }
 
   def testPromise[T](numActors:Int, eventPairs:(AmberPromise[_],T)*): Unit ={
@@ -88,7 +90,12 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
   "controller" should{
 
     "execute Ping Pong" in {
-      testPromise(2, (Ping(1, ActorIdentifier(1)),5))
+      testPromise(2, (Ping(1, 5, ActorIdentifier(1)),5))
+    }
+
+
+    "execute Ping Pong 2 times" in {
+      testPromise(2, (Ping(1, 4, ActorIdentifier(1)),4), (Ping(10, 13, ActorIdentifier(1)),13))
     }
 
     "execute Chain" in {
@@ -104,26 +111,6 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     }
 
 
-    "execute block and non-block promise" in {
-      testPromise(2,
-        (Block(100, ActorIdentifier(1)),100),
-        (NonBlock(1000),1000),
-        (Block(200, ActorIdentifier(1)),200),
-        (NonBlock(2000),2000),
-        (Block(300, ActorIdentifier(1)),300),
-        (NonBlock(3000),3000),
-      )
-    }
-
-    "execute DeadLock" in {
-      try{
-        testPromise(1, (DeadLock(100),"100"))
-      }catch{
-        case e:AssertionError =>
-          println("DeadLock detected")
-      }
-    }
-
     "execute Collect" in {
       testPromise(4, (Collect((1 to 3).map(ActorIdentifier(_))),"finished"))
     }
@@ -135,6 +122,14 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     "execute SubPromise" in {
       testPromise(10, (PromiseInvoker((1 to 9).map(ActorIdentifier(_))), "1"))
     }
+
+
+    "execute SubPromise 3 times" in {
+      testPromise(10, (PromiseInvoker((1 to 9).map(ActorIdentifier(_))), "1"),
+        (PromiseInvoker((1 to 9).map(ActorIdentifier(_))), "1"),
+        (PromiseInvoker((1 to 9).map(ActorIdentifier(_))), "1"))
+    }
+
 
     "execute NestedCall" in {
       testPromise(1, (Nested(5), "Hello World!"))

@@ -3,7 +3,6 @@ package engine.core.control.promise
 import engine.common.identifier.AmberIdentifier
 import engine.core.AmberActor
 import engine.core.control.ControlOutputChannel
-import engine.utils.Lockable
 
 import scala.collection.mutable
 
@@ -14,24 +13,14 @@ trait PromiseManager {
   private val afterGroupComplete = mutable.HashSet[AfterGroupCompletion[_]]()
   private var ID = 0L
   private var promiseContext:PromiseContext = _
-  private val stashedInvocations = mutable.HashSet[PromiseInvocation]()
-  private val unResolvedPromiseMap = mutable.AnyRefMap[PromiseContext, AmberPromise[_]]()
+  private val queuedInvocations = mutable.Queue[PromiseEvent]()
+  private val ongoingSyncPromises = mutable.HashSet[PromiseContext]()
+  private var syncPromiseRoot:PromiseContext = _
 
   var promiseHandler:PartialFunction[AmberPromise[_], Unit] = {
     case promise =>
       log.info(s"discarding $promise")
   }
-
-  var prerequisiteHandler:PartialFunction[AmberPromise[_],Boolean] = {
-    case withoutPrerequisite =>
-      true
-  }
-
-  var cleanupHandler:PartialFunction[AmberPromise[_],Unit] = {
-    case noCleanup =>
-      // do nothing
-  }
-
   def scheduleInternal(event: PromiseEvent): Unit = {
     event match{
       case ret:ReturnEvent =>
@@ -47,33 +36,53 @@ trait PromiseManager {
             afterGroupComplete.remove(i)
           }
         }
-      case p: PromiseInvocation =>
-        promiseContext = p.context
-        if(prerequisiteHandler(p.call)){
-          unResolvedPromiseMap(p.context) = p.call
-          promiseHandler(p.call)
+      case PromiseInvocation(ctx:RootPromiseContext, call:SynchronizedExecution) =>
+        if(syncPromiseRoot == null){
+          syncPromiseRoot = ctx
+          promiseContext = ctx
+          ongoingSyncPromises.add(promiseContext)
+          promiseHandler(call)
         }else{
-          stashedInvocations.addOne(p)
+          queuedInvocations.enqueue(event)
         }
+      case PromiseInvocation(ctx:ChildPromiseContext, call:SynchronizedExecution) =>
+        if(syncPromiseRoot == null || ctx.root == syncPromiseRoot){
+          syncPromiseRoot = ctx.root
+          promiseContext = ctx
+          ongoingSyncPromises.add(promiseContext)
+          promiseHandler(call)
+        }else{
+          queuedInvocations.enqueue(event)
+        }
+      case PromiseInvocation(ctx, call) =>
+        promiseContext = ctx
+        promiseHandler(call)
     }
   }
 
   def schedule[T](cmd:AmberPromise[T], on:AmberIdentifier = amberID):AmberFuture[T] = {
-    val evt = PromiseInvocation(PromiseContext(amberID,ID),cmd)
-    sendTo(on, evt)
+    sendTo(on, PromiseInvocation(mkPromiseContext(),cmd))
     val handle = AmberFuture[T](ID)
     ID += 1
     handle
   }
 
+  @inline
+  private def mkPromiseContext():PromiseContext = {
+    promiseContext match{
+      case ctx:RootPromiseContext =>
+        PromiseContext(amberID, ID, ctx)
+      case ctx:ChildPromiseContext =>
+        PromiseContext(amberID, ID, ctx.root)
+    }
+  }
+
   def schedule(cmd:AmberPromise[Nothing]):Unit = {
-    val evt = PromiseInvocation(PromiseContext(amberID,ID),cmd)
-    sendTo(amberID, evt)
+    sendTo(amberID, PromiseInvocation(mkPromiseContext(),cmd))
   }
 
   def schedule(cmd:AmberPromise[Nothing], on: AmberIdentifier):Unit = {
-    val evt = PromiseInvocation(PromiseContext(amberID,ID),cmd)
-    sendTo(on, evt)
+    sendTo(on, PromiseInvocation(mkPromiseContext(),cmd))
   }
 
   def after[T](future: AmberFuture[T])(f:T => Unit): Unit ={
@@ -87,43 +96,19 @@ trait PromiseManager {
   def returning(value:Any): Unit ={
     // returning should be used at most once per context
     if(promiseContext != null){
-      val current = promiseContext
-      sendTo(current.sender, ReturnEvent(current,value))
-      cleanupHandler(unResolvedPromiseMap(current))
-      unResolvedPromiseMap.remove(current)
+      sendTo(promiseContext.sender, ReturnEvent(promiseContext,value))
+      if(ongoingSyncPromises.contains(promiseContext)) {
+        ongoingSyncPromises.remove(promiseContext)
+        if(ongoingSyncPromises.isEmpty){
+          syncPromiseRoot = null
+          if(queuedInvocations.nonEmpty){
+            scheduleInternal(queuedInvocations.dequeue())
+          }
+        }
+      }
     }
   }
 
   def getLocalIdentifier:AmberIdentifier = amberID
-
-
-  def tryLock(states:Lockable*): Boolean ={
-    if(states.exists(_.isLocked)){
-      false
-    }else{
-      states.foreach(_.lock(promiseContext))
-      true
-    }
-  }
-
-  def unlock(states:Lockable*):Unit ={
-    assert(states.forall(_.getOwner == promiseContext))
-    states.foreach(_.unlock())
-    scheduleDelayedPromises()
-  }
-
-  private def scheduleDelayedPromises(): Unit ={
-    val toRemove = mutable.ArrayBuffer[PromiseInvocation]()
-    stashedInvocations.foreach{
-      p =>
-        promiseContext = p.context
-        if(prerequisiteHandler(p.call)){
-          toRemove.addOne(p)
-          unResolvedPromiseMap(p.context) = p.call
-          promiseHandler(p.call)
-        }
-    }
-    stashedInvocations --= toRemove
-  }
 
 }

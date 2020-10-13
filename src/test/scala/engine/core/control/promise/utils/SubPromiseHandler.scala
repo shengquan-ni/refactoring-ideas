@@ -5,7 +5,7 @@ import engine.core.control.promise.utils.ChainHandler.Chain
 import engine.core.control.promise.utils.CollectHandler.Collect
 import engine.core.control.promise.utils.RecursionHandler.Recursion
 import engine.core.control.promise.utils.SubPromiseHandler.PromiseInvoker
-import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
+import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager, SynchronizedExecution}
 
 object SubPromiseHandler{
   case class PromiseInvoker(seq:Seq[AmberIdentifier]) extends AmberPromise[String]
