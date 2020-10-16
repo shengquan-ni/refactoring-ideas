@@ -1,5 +1,5 @@
 package engine.core.control.promise
 
-case class AmberFuture[T](id:Long){
+case class InternalFuture[T](id:Long){
 
 }

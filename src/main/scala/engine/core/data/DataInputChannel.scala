@@ -4,7 +4,7 @@ import engine.common.OrderingEnforcer
 import engine.common.identifier.AmberIdentifier
 import engine.core.data.DataInputChannel.AmberDataMessage
 import engine.core.data.DataOutputChannel.DataMessageAck
-import engine.core.AmberActor
+import engine.core.InternalActor
 import engine.core.worker.CoreProcessingUnit
 import engine.event.DataEvent
 import engine.message.AmberFIFOMessage
@@ -17,7 +17,7 @@ object DataInputChannel{
 
 
 trait DataInputChannel {
-  this: AmberActor with CoreProcessingUnit =>
+  this: InternalActor with CoreProcessingUnit =>
 
   private val dataOrderingEnforcer = new mutable.AnyRefMap[AmberIdentifier,OrderingEnforcer[DataEvent]]()
 

@@ -1,12 +1,12 @@
 package engine.core.control.promise.utils
 
 import engine.core.control.promise.utils.NestedHandler.{Nested, Pass}
-import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager}
+import engine.core.control.promise.{InternalPromise, PromiseHandler, PromiseManager}
 
 object NestedHandler{
-  case class Nested(k:Int) extends AmberPromise[String]
+  case class Nested(k:Int) extends InternalPromise[String]
 
-  case class Pass[T](value:T) extends AmberPromise[T]
+  case class Pass[T](value:T) extends InternalPromise[T]
 }
 
 

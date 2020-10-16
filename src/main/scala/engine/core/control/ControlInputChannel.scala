@@ -3,7 +3,7 @@ package engine.core.control
 import engine.common.OrderingEnforcer
 import engine.common.identifier.AmberIdentifier
 import engine.core.control.promise.{PromiseEvent, PromiseManager}
-import engine.core.AmberActor
+import engine.core.InternalActor
 import engine.core.control.ControlInputChannel.AmberControlMessage
 import engine.core.control.ControlOutputChannel.ControlMessageAck
 import engine.event.ControlEvent
@@ -18,7 +18,7 @@ object ControlInputChannel{
 
 
 trait ControlInputChannel {
-  this: AmberActor with PromiseManager =>
+  this: InternalActor with PromiseManager =>
 
   private val controlOrderingEnforcer = new mutable.AnyRefMap[AmberIdentifier,OrderingEnforcer[ControlEvent]]()
 

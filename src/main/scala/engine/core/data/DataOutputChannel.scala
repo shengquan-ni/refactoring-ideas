@@ -3,10 +3,10 @@ package engine.core.data
 import java.util.concurrent.atomic.AtomicLong
 
 import engine.common.identifier.AmberIdentifier
-import engine.core.AmberActor
+import engine.core.InternalActor
 import engine.core.data.DataInputChannel.AmberDataMessage
 import engine.core.data.DataOutputChannel.DataMessageAck
-import engine.core.network.AmberNetworkOutputLayer
+import engine.core.network.NetworkOutputLayer
 import engine.event.DataEvent
 import engine.message.AmberFIFOMessage
 
@@ -18,7 +18,7 @@ object DataOutputChannel{
 }
 
 trait DataOutputChannel {
-  this: AmberActor with AmberNetworkOutputLayer =>
+  this: InternalActor with NetworkOutputLayer =>
 
   private val dataMessageSeqMap = new mutable.AnyRefMap[AmberIdentifier,AtomicLong]()
   private var dataUUID = 0L

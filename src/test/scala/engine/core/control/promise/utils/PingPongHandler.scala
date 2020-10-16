@@ -2,12 +2,12 @@ package engine.core.control.promise.utils
 
 import engine.common.identifier.AmberIdentifier
 import engine.core.control.promise.utils.PingPongHandler.{Ping, Pong}
-import engine.core.control.promise.{AmberPromise, PromiseHandler, PromiseManager, SynchronizedExecution}
+import engine.core.control.promise.{InternalPromise, PromiseHandler, PromiseManager, SynchronizedInvocation}
 
 object PingPongHandler{
-  case class Ping(i:Int, end:Int, to:AmberIdentifier) extends AmberPromise[Int]
+  case class Ping(i:Int, end:Int, to:AmberIdentifier) extends InternalPromise[Int]
 
-  case class Pong(i:Int, end:Int, to:AmberIdentifier) extends AmberPromise[Int] with SynchronizedExecution
+  case class Pong(i:Int, end:Int, to:AmberIdentifier) extends InternalPromise[Int] with SynchronizedInvocation
 }
 
 

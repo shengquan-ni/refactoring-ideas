@@ -2,18 +2,18 @@ package engine.core.network
 
 import akka.actor.{Actor, ActorRef}
 import engine.common.identifier.AmberIdentifier
-import engine.core.network.AmberNetworkOutputLayer.{QueryActorRef, ReplyActorRef}
+import engine.core.network.NetworkOutputLayer.{QueryActorRef, ReplyActorRef}
 import engine.message.AmberFIFOMessage
 
 import scala.collection.mutable
 
-object AmberNetworkOutputLayer {
+object NetworkOutputLayer {
   final case class QueryActorRef(id:AmberIdentifier)
 
   final case class ReplyActorRef(id:AmberIdentifier, ref:ActorRef)
 }
 
-trait AmberNetworkOutputLayer {
+trait NetworkOutputLayer {
   this: Actor =>
 
   private val idMap = mutable.HashMap[AmberIdentifier,ActorRef]()

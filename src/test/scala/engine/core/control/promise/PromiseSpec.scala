@@ -9,14 +9,14 @@ import engine.core.control.{ControlInputChannel, ControlOutputChannel}
 import engine.core.control.promise.utils.ChainHandler.Chain
 import engine.core.control.promise.utils.CollectHandler.Collect
 import engine.core.control.promise.utils.NestedHandler.{Nested, Pass}
-import engine.core.control.promise.utils.NoReturnHandler.NoReturnInvoker
+import engine.core.control.promise.utils.NoReturnHandler.{NoReturnInvoker, NoReturnInvoker2}
 import engine.core.control.promise.utils.PingPongHandler.Ping
 import engine.core.control.promise.utils.RecursionHandler.Recursion
 import engine.core.control.promise.utils.SubPromiseHandler.PromiseInvoker
 import engine.core.control.promise.utils.{ChainHandler, CollectHandler, NestedHandler, NoReturnHandler, PingPongHandler, PromiseTester, RecursionHandler, SubPromiseHandler}
-import engine.core.AmberActor
-import engine.core.network.AmberNetworkOutputLayer
-import engine.core.network.AmberNetworkOutputLayer.{QueryActorRef, ReplyActorRef}
+import engine.core.InternalActor
+import engine.core.network.NetworkOutputLayer
+import engine.core.network.NetworkOutputLayer.{QueryActorRef, ReplyActorRef}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -32,7 +32,7 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     TestKit.shutdownActorSystem(system)
   }
 
-  def setUp(numActors:Int, event:AmberPromise[_]*): (TestProbe, mutable.HashMap[AmberIdentifier,ActorRef]) ={
+  def setUp(numActors:Int, event:InternalPromise[_]*): (TestProbe, mutable.HashMap[AmberIdentifier,ActorRef]) ={
     val probe = TestProbe()
     val idMap = mutable.HashMap[AmberIdentifier,ActorRef]()
     for(i <- 0 until numActors){
@@ -49,11 +49,11 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     (probe,idMap)
   }
 
-  def mkPromiseContext(cmd:AmberPromise[_], seqNum:Int):PromiseContext = {
+  def mkPromiseContext(cmd:InternalPromise[_], seqNum:Int):PromiseContext = {
      PromiseContext(AmberIdentifier.Client, seqNum)
   }
 
-  def testPromise[T](numActors:Int, eventPairs:(AmberPromise[_],T)*): Unit ={
+  def testPromise[T](numActors:Int, eventPairs:(InternalPromise[_],T)*): Unit ={
     val (events,expectedValues) = eventPairs.unzip
     val (probe,idMap) = setUp(numActors,events:_*)
     var flag = 0
@@ -71,7 +71,7 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     }
   }
 
-  def testPromise(numActors:Int, event:AmberPromise[_]): Unit ={
+  def testPromise(numActors:Int, event:InternalPromise[_]): Unit ={
     val (probe,idMap) = setUp(numActors,event)
     var flag = true
     probe.receiveWhile(5.minutes,2.seconds){
@@ -137,6 +137,23 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
 
     "execute NoReturn" in {
       testPromise(2, NoReturnInvoker(ActorIdentifier(1)))
+    }
+
+    "execute NoReturn 2" in {
+      val (probe,idMap) = setUp(2,NoReturnInvoker(ActorIdentifier(1)), NoReturnInvoker2(ActorIdentifier(1)), NoReturnInvoker(ActorIdentifier(1)))
+      var flag = 0
+      probe.receiveWhile(5.minutes,2.seconds){
+        case QueryActorRef(id) =>
+          probe.sender() ! ReplyActorRef(id,idMap(id))
+        case AmberControlMessage(_,_,_,ReturnEvent(context,value)) =>
+          assert(value == 1)
+          flag += 1
+        case other =>
+        //skip
+      }
+      if(flag != 1){
+        throw new AssertionError()
+      }
     }
 
   }

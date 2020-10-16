@@ -1,13 +1,13 @@
 package engine.core.control.promise.utils
 
 import engine.common.identifier.AmberIdentifier
-import engine.core.AmberActor
+import engine.core.InternalActor
 import engine.core.control.{ControlInputChannel, ControlOutputChannel}
 import engine.core.control.promise.PromiseManager
-import engine.core.network.AmberNetworkOutputLayer
+import engine.core.network.NetworkOutputLayer
 
-class PromiseTester(val amberID:AmberIdentifier) extends AmberActor
-  with ControlInputChannel with ControlOutputChannel with AmberNetworkOutputLayer with PromiseManager
+class PromiseTester(val amberID:AmberIdentifier) extends InternalActor
+  with ControlInputChannel with ControlOutputChannel with NetworkOutputLayer with PromiseManager
   with NestedHandler with PingPongHandler with RecursionHandler with CollectHandler with ChainHandler
   with SubPromiseHandler with NoReturnHandler with DummyStateComponent {
 

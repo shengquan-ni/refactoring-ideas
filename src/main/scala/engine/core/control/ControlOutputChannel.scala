@@ -5,8 +5,8 @@ import java.util.concurrent.atomic.AtomicLong
 import engine.common.identifier.AmberIdentifier
 import engine.core.control.ControlInputChannel.AmberControlMessage
 import engine.core.control.ControlOutputChannel.ControlMessageAck
-import engine.core.AmberActor
-import engine.core.network.AmberNetworkOutputLayer
+import engine.core.InternalActor
+import engine.core.network.NetworkOutputLayer
 import engine.event.ControlEvent
 import engine.message.AmberFIFOMessage
 
@@ -19,7 +19,7 @@ object ControlOutputChannel{
 
 
 trait ControlOutputChannel {
-  this: AmberActor with AmberNetworkOutputLayer =>
+  this: InternalActor with NetworkOutputLayer =>
 
   private val controlMessageSeqMap = new mutable.AnyRefMap[AmberIdentifier,AtomicLong]()
   private var controlUUID = 0L

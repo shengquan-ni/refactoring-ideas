@@ -4,10 +4,6 @@ import java.util.concurrent.locks.ReentrantLock
 
 trait DummyStateComponent {
 
-  var state:DummyState = new DummyState()
-
-  class DummyState{
-    var lockedVariable = 0
-  }
+ var variable = 0
 
 }
