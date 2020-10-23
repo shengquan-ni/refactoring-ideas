@@ -1,23 +1,23 @@
 package engine.core.control.promise
 
-import engine.common.identifier.AmberIdentifier
+import engine.common.identifier.Identifier
 
 object PromiseContext{
-  def apply(sender:AmberIdentifier, id:Long): RootPromiseContext = RootPromiseContext(sender, id)
-  def apply(sender:AmberIdentifier, id:Long, root: RootPromiseContext): ChildPromiseContext = ChildPromiseContext(sender, id, root)
+  def apply(sender:Identifier, id:Long): RootPromiseContext = RootPromiseContext(sender, id)
+  def apply(sender:Identifier, id:Long, root: RootPromiseContext): ChildPromiseContext = ChildPromiseContext(sender, id, root)
 }
 
 
 sealed trait PromiseContext{
-  def sender:AmberIdentifier
+  def sender:Identifier
   def id:Long
 }
 
 
-case class RootPromiseContext(sender:AmberIdentifier, id:Long) extends PromiseContext
+case class RootPromiseContext(sender:Identifier, id:Long) extends PromiseContext
 
 
-case class ChildPromiseContext(sender:AmberIdentifier, id:Long, root:RootPromiseContext) extends PromiseContext
+case class ChildPromiseContext(sender:Identifier, id:Long, root:RootPromiseContext) extends PromiseContext
 
 
 

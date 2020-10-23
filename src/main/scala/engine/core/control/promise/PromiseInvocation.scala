@@ -1,3 +1,5 @@
 package engine.core.control.promise
 
-case class PromiseInvocation(context:PromiseContext, call: InternalPromise[_]) extends PromiseEvent
+import engine.core.control.ControlMessage
+
+case class PromiseInvocation(context:PromiseContext, call: ControlMessage[_]) extends PromiseEvent

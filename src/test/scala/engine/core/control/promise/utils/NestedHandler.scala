@@ -1,25 +1,27 @@
 package engine.core.control.promise.utils
 
+import engine.core.control.ControlMessage
 import engine.core.control.promise.utils.NestedHandler.{Nested, Pass}
 import engine.core.control.promise.{InternalPromise, PromiseHandler, PromiseManager}
+import scala.reflect.runtime.universe._
 
 object NestedHandler{
-  case class Nested(k:Int) extends InternalPromise[String]
+  case class Nested(k:Int) extends ControlMessage[String]
 
-  case class Pass[T](value:T) extends InternalPromise[T]
+  case class Pass[T:TypeTag](value:T) extends ControlMessage[T]
 }
 
 
 trait NestedHandler extends PromiseHandler {
-  this: PromiseManager with DummyStateComponent =>
+  this: PromiseManager with DummyState =>
 
   registerHandler{
     case Nested(k) =>
-      after(schedule(Pass("Hello"))){
+      schedule(Pass("Hello")).map{
         ret:String =>
-          after(schedule(Pass(" "))){
+          schedule(Pass(" ")).map{
             ret2:String =>
-              after(schedule(Pass("World!"))){
+              schedule(Pass("World!")).map{
                 ret3:String =>
                   println(ret+ret2+ret3)
                   returning(ret+ret2+ret3)

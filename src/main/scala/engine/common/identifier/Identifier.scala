@@ -1,10 +1,10 @@
 package engine.common.identifier
 
-trait AmberIdentifier
+trait Identifier
 
-object AmberIdentifier{
+object Identifier{
 
-  case class EmptyIdentifier() extends AmberIdentifier
+  case class EmptyIdentifier() extends Identifier
 
   lazy val Controller: ControllerIdentifier = ControllerIdentifier()
   lazy val Client:ClientIdentifier = ClientIdentifier()

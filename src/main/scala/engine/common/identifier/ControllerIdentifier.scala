@@ -1,3 +1,3 @@
 package engine.common.identifier
 
-case class ControllerIdentifier() extends AmberIdentifier
+case class ControllerIdentifier() extends Identifier

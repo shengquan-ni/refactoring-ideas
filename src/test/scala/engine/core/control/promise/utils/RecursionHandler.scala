@@ -1,10 +1,11 @@
 package engine.core.control.promise.utils
 
+import engine.core.control.ControlMessage
 import engine.core.control.promise.utils.RecursionHandler.Recursion
-import engine.core.control.promise.{InternalPromise, PromiseHandler, PromiseManager}
+import engine.core.control.promise.{InternalPromise, PromiseHandler, PromiseManager, SyntaxChecker}
 
 object RecursionHandler{
-  case class Recursion(i:Int) extends InternalPromise[String]
+  case class Recursion(i:Int) extends ControlMessage[String]
 }
 
 trait RecursionHandler extends PromiseHandler {
@@ -14,8 +15,8 @@ trait RecursionHandler extends PromiseHandler {
     case Recursion(i) =>
       if(i < 5){
         println(i)
-        after(schedule(Recursion(i+1))){
-          res:String =>
+        schedule(Recursion(i+1)).map{
+          res =>
             println(res)
             returning(i.toString)
         }

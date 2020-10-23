@@ -2,7 +2,7 @@ name := "Amber"
 
 version := "1.0"
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.13.3"
 
 lazy val akkaVersion = "2.6.8"
 
@@ -17,6 +17,7 @@ libraryDependencies ++= Seq(
   "io.aeron" % "aeron-client" % "1.27.0",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  "com.twitter" %% "util-core" % "20.9.0",
   "com.twitter" %% "chill-akka" % "0.9.5",
   "com.google.guava" % "guava" % "12.0",
   "com.beachape" %% "enumeratum" % "1.6.1",
@@ -24,3 +25,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   "org.scalatest" %% "scalatest" % "3.1.0" % Test
 )
+
+scalacOptions ++= Seq("-Xasync")

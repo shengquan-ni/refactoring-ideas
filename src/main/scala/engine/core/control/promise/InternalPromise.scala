@@ -1,9 +1,13 @@
 package engine.core.control.promise
-import scala.reflect.runtime.universe._
+import com.twitter.util.Promise
 
-
-trait InternalPromise[T]{
-
+object InternalPromise{
+  def apply[T](ctx:PromiseContext): InternalPromise[T] = new InternalPromise[T](ctx)
 }
 
-trait VoidInternalPromise extends InternalPromise[Nothing]
+class InternalPromise[T](val ctx:PromiseContext) extends Promise[T]{
+
+  type returnType = T
+
+  override def setValue(result: returnType): Unit = super.setValue(result)
+}

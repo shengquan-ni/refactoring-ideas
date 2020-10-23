@@ -1,24 +1,20 @@
 package engine.common
 
-
-import engine.common.api.field.{IField, IntegerField, ListField}
-import engine.common.api.schema.Schema
-
 import collection.JavaConverters._
 import scala.util.hashing.MurmurHash3
 
-object Tuple{
-  def apply(values: Any*): Tuple = new AmberTuple(values.toArray)
-  def fromSeq(values: Seq[Any]): Tuple = new AmberTuple(values.toArray)
-  def fromIterable(values: Iterable[Any]): Tuple = new AmberTuple(values.toArray)
-  def fromJavaArray(values: Array[Any]) = new AmberTuple(values)
-  def fromJavaList(values: java.util.List[Any]):Tuple = new AmberTuple(values.asScala.toArray)
+object ITuple{
+  def apply(values: Any*): ITuple = new InternalTuple(values.toArray)
+  def fromSeq(values: Seq[Any]): ITuple = new InternalTuple(values.toArray)
+  def fromIterable(values: Iterable[Any]): ITuple = new InternalTuple(values.toArray)
+  def fromJavaArray(values: Array[Any]) = new InternalTuple(values)
+  def fromJavaList(values: java.util.List[Any]):ITuple = new InternalTuple(values.asScala.toArray)
   val empty = apply()
 
 
 }
 
-trait Tuple extends Serializable{
+trait ITuple extends Serializable{
   def size: Int = length
   def length: Int
   def apply(i: Int): Any = get(i)
@@ -67,8 +63,8 @@ trait Tuple extends Serializable{
 
 
   override def equals(o: Any): Boolean = {
-    if (!o.isInstanceOf[Tuple]) return false
-    val other = o.asInstanceOf[Tuple]
+    if (!o.isInstanceOf[ITuple]) return false
+    val other = o.asInstanceOf[ITuple]
 
     if (other eq null) return false
 

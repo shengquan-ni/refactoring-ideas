@@ -2,13 +2,13 @@ package engine.core.control
 
 import java.util.concurrent.atomic.AtomicLong
 
-import engine.common.identifier.AmberIdentifier
-import engine.core.control.ControlInputChannel.AmberControlMessage
+import engine.common.identifier.Identifier
+import engine.core.control.ControlInputChannel.InternalControlMessage
 import engine.core.control.ControlOutputChannel.ControlMessageAck
 import engine.core.InternalActor
 import engine.core.network.NetworkOutputLayer
 import engine.event.ControlEvent
-import engine.message.AmberFIFOMessage
+import engine.message.{InternalFIFOMessage, ControlRecovery}
 
 import scala.collection.mutable
 
@@ -19,25 +19,31 @@ object ControlOutputChannel{
 
 
 trait ControlOutputChannel {
-  this: InternalActor with NetworkOutputLayer =>
+  this: InternalActor with NetworkOutputLayer with ControlRecovery =>
 
-  private val controlMessageSeqMap = new mutable.AnyRefMap[AmberIdentifier,AtomicLong]()
+  private val controlMessageSeqMap = new mutable.AnyRefMap[Identifier,AtomicLong]()
   private var controlUUID = 0L
-  private val controlMessageInTransit = mutable.LongMap[AmberFIFOMessage]()
+  private val controlMessageInTransit = mutable.LongMap[InternalFIFOMessage]()
 
-  def sendTo(to:AmberIdentifier, event:ControlEvent): Unit ={
-    if(to == AmberIdentifier.None){
+  def sendTo(to:Identifier, event:ControlEvent): Unit ={
+    if(to == Identifier.None){
       return
     }
-    val msg = AmberControlMessage(amberID, controlMessageSeqMap.getOrElseUpdate(to,new AtomicLong()).getAndIncrement(), controlUUID, event)
+    val seqNum = controlMessageSeqMap.getOrElseUpdate(to,new AtomicLong()).getAndIncrement()
+    if(!ifMessageHasSent(controlUUID)){
+      val msg = InternalControlMessage(amberID, seqNum, controlUUID, event)
+      controlMessageInTransit(controlUUID) = msg
+      forwardMessage(to,msg)
+    }
     controlUUID += 1
-    controlMessageInTransit(controlUUID) = msg
-    forwardMessage(to,msg)
   }
 
   def ackControlMessages:Receive ={
     case ControlMessageAck(messageIdentifier) =>
-      controlMessageInTransit.remove(messageIdentifier)
+      if(controlMessageInTransit.contains(messageIdentifier)){
+        controlMessageInTransit.remove(messageIdentifier)
+        saveOutputControlMessageID(messageIdentifier)
+      }
   }
 
 }

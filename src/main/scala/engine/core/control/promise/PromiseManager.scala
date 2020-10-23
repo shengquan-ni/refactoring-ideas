@@ -1,39 +1,48 @@
 package engine.core.control.promise
 
-import engine.common.identifier.AmberIdentifier
+import com.twitter.util.{Future, Promise}
+import engine.common.identifier.Identifier
 import engine.core.InternalActor
-import engine.core.control.ControlOutputChannel
+import engine.core.control.{ControlMessage, ControlOutputChannel}
 
 import scala.collection.mutable
 
 trait PromiseManager {
   this: InternalActor with ControlOutputChannel =>
 
-  private val afterComplete = mutable.LongMap[AfterCompletion[_]]()
-  private val afterGroupComplete = mutable.HashSet[AfterGroupCompletion[_]]()
   private var ID = 0L
+  private val unCompletedPromises = mutable.HashMap[PromiseContext, InternalPromise[_]]()
+  private val unCompletedGroupPromises = mutable.HashSet[GroupedInternalPromise[_]]()
   private var promiseContext:PromiseContext = _
   private val queuedInvocations = mutable.Queue[PromiseEvent]()
   private val ongoingSyncPromises = mutable.HashSet[PromiseContext]()
   private var syncPromiseRoot:PromiseContext = _
 
-  var promiseHandler:PartialFunction[InternalPromise[_], Unit] = {
+  protected var promiseHandler:PartialFunction[ControlMessage[_], Unit] = {
     case promise =>
       log.info(s"discarding $promise")
   }
-  def scheduleInternal(event: PromiseEvent): Unit = {
+
+  def consume(event: PromiseEvent): Unit = {
     event match{
       case ret:ReturnEvent =>
-        if(afterComplete.contains(ret.context.id)){
-          promiseContext = afterComplete(ret.context.id).context
-          afterComplete(ret.context.id).invoke(ret.returnValue)
-          afterComplete.remove(ret.context.id)
+        if(unCompletedPromises.contains(ret.context)) {
+          val p = unCompletedPromises(ret.context)
+          promiseContext = p.ctx
+          ret.returnValue match {
+            case throwable: Throwable =>
+              p.setException(throwable)
+            case _ =>
+              p.setValue(ret.returnValue.asInstanceOf[p.returnType])
+          }
+          unCompletedPromises.remove(ret.context)
         }
-        for(i <- afterGroupComplete){
+
+        for(i <- unCompletedGroupPromises){
           if(i.takeReturnValue(ret)){
-            promiseContext = i.context
+            promiseContext = i.promise.ctx
             i.invoke()
-            afterGroupComplete.remove(i)
+            unCompletedGroupPromises.remove(i)
           }
         }
       case PromiseInvocation(ctx:RootPromiseContext, call:SynchronizedInvocation) =>
@@ -47,37 +56,46 @@ trait PromiseManager {
         if(syncPromiseRoot == null || ctx.root == syncPromiseRoot){
           registerSyncPromise(ctx.root,ctx)
           invokePromise(ctx,call)
-        }else{
+        }else {
           queuedInvocations.enqueue(event)
         }
-      case PromiseInvocation(ctx, call) =>
-        invokePromise(ctx, call)
+      case p:PromiseInvocation =>
+        promiseContext = p.context
+        try{
+          promiseHandler(p.call)
+        }catch{
+          case e:Throwable =>
+            returning(e)
+        }
     }
     tryInvokeNextSyncPromise()
   }
 
-  def schedule[T](cmd:InternalPromise[T], on:AmberIdentifier = amberID):InternalFuture[T] = {
-    sendTo(on, PromiseInvocation(mkPromiseContext(),cmd))
-    val handle = InternalFuture[T](ID)
+  def schedule[T](cmd:ControlMessage[T], on:Identifier = amberID):Promise[T] = {
+    val ctx = mkPromiseContext()
     ID += 1
-    handle
+    sendTo(on, PromiseInvocation(ctx,cmd))
+    val promise = InternalPromise[T](promiseContext)
+    unCompletedPromises(ctx) = promise
+    promise
   }
 
-  def schedule(cmd:InternalPromise[Nothing]):Unit = {
-    sendTo(amberID, PromiseInvocation(mkPromiseContext(),cmd))
+  def schedule[T](seq:(ControlMessage[T], Identifier)*):Promise[Seq[T]] = {
+    val promise = InternalPromise[Seq[T]](promiseContext)
+    if(seq.isEmpty){
+      promise.setValue(Seq.empty)
+    }else{
+      unCompletedGroupPromises.add(GroupedInternalPromise[T](ID,ID+seq.length, promise))
+      seq.foreach{
+        i =>
+          val ctx = mkPromiseContext()
+          ID += 1
+          sendTo(i._2, PromiseInvocation(ctx,i._1))
+      }
+    }
+    promise
   }
 
-  def schedule(cmd:InternalPromise[Nothing], on: AmberIdentifier):Unit = {
-    sendTo(on, PromiseInvocation(mkPromiseContext(),cmd))
-  }
-
-  def after[T](future: InternalFuture[T])(f:T => Unit): Unit ={
-    afterComplete(future.id) = AfterCompletion(promiseContext, f)
-  }
-
-  def after[T](futures:InternalFuture[T]*)(f:Seq[T] => Unit):Unit = {
-    afterGroupComplete.add(AfterGroupCompletion(promiseContext, futures.map(_.id), f))
-  }
 
   def returning(value:Any): Unit ={
     // returning should be used at most once per context
@@ -87,7 +105,15 @@ trait PromiseManager {
     }
   }
 
-  def getLocalIdentifier:AmberIdentifier = amberID
+  def returning(): Unit ={
+    // returning should be used at most once per context
+    if(promiseContext != null){
+      sendTo(promiseContext.sender, ReturnEvent(promiseContext,PromiseCompleted()))
+      exitCurrentPromise()
+    }
+  }
+
+  def getLocalIdentifier:Identifier = amberID
 
   @inline
   private def exitCurrentPromise(): Unit ={
@@ -102,7 +128,7 @@ trait PromiseManager {
     if(ongoingSyncPromises.isEmpty){
       syncPromiseRoot = null
       if(queuedInvocations.nonEmpty){
-        scheduleInternal(queuedInvocations.dequeue())
+        consume(queuedInvocations.dequeue())
       }
     }
   }
@@ -114,15 +140,6 @@ trait PromiseManager {
   }
 
   @inline
-  private def invokePromise(ctx:PromiseContext, call:InternalPromise[_]): Unit ={
-    promiseContext = ctx
-    promiseHandler(call)
-    if(call.isInstanceOf[VoidInternalPromise]){
-      exitCurrentPromise()
-    }
-  }
-
-  @inline
   private def mkPromiseContext():PromiseContext = {
     promiseContext match{
       case ctx:RootPromiseContext =>
@@ -131,5 +148,12 @@ trait PromiseManager {
         PromiseContext(amberID, ID, ctx.root)
     }
   }
+
+  @inline
+  private def invokePromise(ctx:PromiseContext, call:ControlMessage[_]): Unit ={
+    promiseContext = ctx
+    promiseHandler(call)
+  }
+
 
 }

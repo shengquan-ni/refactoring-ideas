@@ -1,22 +1,31 @@
 package engine.core.control.promise
 
+import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestKit, TestProbe}
+import com.esotericsoftware.kryo.{Kryo, KryoException}
+import com.esotericsoftware.kryo.io.Input
+import com.twitter.util.FuturePool
 import engine.clustering.SingleNodeListener
-import engine.common.identifier.{ActorIdentifier, AmberIdentifier}
-import engine.core.control.ControlInputChannel.AmberControlMessage
-import engine.core.control.{ControlInputChannel, ControlOutputChannel}
+import engine.common.ITuple
+import engine.common.identifier.{ActorIdentifier, Identifier}
+import engine.core.control.ControlInputChannel.InternalControlMessage
+import engine.core.control.{ControlInputChannel, ControlMessage, ControlOutputChannel}
 import engine.core.control.promise.utils.ChainHandler.Chain
 import engine.core.control.promise.utils.CollectHandler.Collect
 import engine.core.control.promise.utils.NestedHandler.{Nested, Pass}
-import engine.core.control.promise.utils.NoReturnHandler.{NoReturnInvoker, NoReturnInvoker2}
 import engine.core.control.promise.utils.PingPongHandler.Ping
 import engine.core.control.promise.utils.RecursionHandler.Recursion
 import engine.core.control.promise.utils.SubPromiseHandler.PromiseInvoker
-import engine.core.control.promise.utils.{ChainHandler, CollectHandler, NestedHandler, NoReturnHandler, PingPongHandler, PromiseTester, RecursionHandler, SubPromiseHandler}
+import engine.core.control.promise.utils.{ChainHandler, CollectHandler, NestedHandler, PingPongHandler, PromiseTester, RecursionHandler, SubPromiseHandler}
 import engine.core.InternalActor
+import engine.core.control.promise.utils.ExampleHandler.Init
+import engine.core.data.DataInputChannel.InternalDataMessage
 import engine.core.network.NetworkOutputLayer
 import engine.core.network.NetworkOutputLayer.{QueryActorRef, ReplyActorRef}
+import engine.event.InternalPayload
+import engine.message.InternalFIFOMessage
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -32,35 +41,35 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     TestKit.shutdownActorSystem(system)
   }
 
-  def setUp(numActors:Int, event:InternalPromise[_]*): (TestProbe, mutable.HashMap[AmberIdentifier,ActorRef]) ={
+  def setUp(numActors:Int, event:ControlMessage[_]*): (TestProbe, mutable.HashMap[Identifier,ActorRef]) ={
     val probe = TestProbe()
-    val idMap = mutable.HashMap[AmberIdentifier,ActorRef]()
+    val idMap = mutable.HashMap[Identifier,ActorRef]()
     for(i <- 0 until numActors){
       val ref = probe.childActorOf(Props(new PromiseTester(ActorIdentifier(i))))
       idMap(ActorIdentifier(i)) = ref
     }
-    idMap(AmberIdentifier.Client) = probe.ref
+    idMap(Identifier.Client) = probe.ref
     var seqNum = 0
     event.foreach{
       evt =>
-        probe.send(idMap(ActorIdentifier(0)), AmberControlMessage(AmberIdentifier.Client,seqNum,seqNum, PromiseInvocation(mkPromiseContext(evt,seqNum),evt)))
+        probe.send(idMap(ActorIdentifier(0)), InternalControlMessage(Identifier.Client,seqNum,seqNum, PromiseInvocation(mkPromiseContext(seqNum),evt)))
         seqNum += 1
     }
     (probe,idMap)
   }
 
-  def mkPromiseContext(cmd:InternalPromise[_], seqNum:Int):PromiseContext = {
-     PromiseContext(AmberIdentifier.Client, seqNum)
+  def mkPromiseContext(seqNum:Int):PromiseContext = {
+     PromiseContext(Identifier.Client, seqNum)
   }
 
-  def testPromise[T](numActors:Int, eventPairs:(InternalPromise[_],T)*): Unit ={
+  def testPromise[T](numActors:Int, eventPairs:(ControlMessage[_],T)*): Unit ={
     val (events,expectedValues) = eventPairs.unzip
     val (probe,idMap) = setUp(numActors,events:_*)
     var flag = 0
-    probe.receiveWhile(5.minutes,2.seconds){
+    probe.receiveWhile(5.minutes,5.seconds){
       case QueryActorRef(id) =>
         probe.sender() ! ReplyActorRef(id,idMap(id))
-      case AmberControlMessage(_,_,_,ReturnEvent(context,value)) =>
+      case InternalControlMessage(_,_,_,ReturnEvent(context,value)) =>
         assert(value.asInstanceOf[T] == expectedValues(context.id.toInt))
         flag += 1
       case other =>
@@ -69,20 +78,6 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
     if(flag != expectedValues.length){
       throw new AssertionError()
     }
-  }
-
-  def testPromise(numActors:Int, event:InternalPromise[_]): Unit ={
-    val (probe,idMap) = setUp(numActors,event)
-    var flag = true
-    probe.receiveWhile(5.minutes,2.seconds){
-      case QueryActorRef(id) =>
-        probe.sender() ! ReplyActorRef(id,idMap(id))
-      case AmberControlMessage(_,_,_,ReturnEvent(context,value)) =>
-        flag = false
-      case other =>
-      //skip
-    }
-    assert(flag)
   }
 
 
@@ -135,26 +130,91 @@ class PromiseSpec extends TestKit(ActorSystem("PromiseSpec")) with AnyWordSpecLi
       testPromise(1, (Nested(5), "Hello World!"))
     }
 
-    "execute NoReturn" in {
-      testPromise(2, NoReturnInvoker(ActorIdentifier(1)))
+//    "execute NoReturn" in {
+//      testPromise(2, NoReturnInvoker(ActorIdentifier(1)))
+//    }
+//    "execute NoReturn 2" in {
+//      val (probe,idMap) = setUp(2,NoReturnInvoker(ActorIdentifier(1)), NoReturnInvoker2(ActorIdentifier(1)), NoReturnInvoker(ActorIdentifier(1)))
+//      var flag = 0
+//      probe.receiveWhile(5.minutes,2.seconds){
+//        case QueryActorRef(id) =>
+//          probe.sender() ! ReplyActorRef(id,idMap(id))
+//        case AmberControlMessage(_,_,_,ReturnEvent(context,value)) =>
+//          assert(value == 1)
+//          flag += 1
+//        case other =>
+//        //skip
+//      }
+//      if(flag != 1){
+//        throw new AssertionError()
+//      }
+//    }
+
+    "execute an example message" in{
+      testPromise(2, (Init(), PromiseCompleted()))
     }
 
-    "execute NoReturn 2" in {
-      val (probe,idMap) = setUp(2,NoReturnInvoker(ActorIdentifier(1)), NoReturnInvoker2(ActorIdentifier(1)), NoReturnInvoker(ActorIdentifier(1)))
-      var flag = 0
-      probe.receiveWhile(5.minutes,2.seconds){
+
+    "process data messages" in {
+      val (probe,map) = setUp(4)
+      (0 until 1000).foreach{
+        i =>
+          probe.send(map(ActorIdentifier(0)),InternalDataMessage(Identifier.Client,i,i, InternalPayload(Array(ITuple(i)))))
+      }
+
+      FuturePool.unboundedPool{
+        (0 until 5).foreach{
+          i =>
+            val evt = Collect((1 to 3).map(ActorIdentifier(_)))
+            val ctrl = PromiseInvocation(mkPromiseContext(i),evt)
+            probe.send(map(ActorIdentifier(0)),InternalControlMessage(Identifier.Client,i,1000+i,ctrl))
+            Thread.sleep(1000)
+        }
+      }
+
+      probe.receiveWhile(5.minutes,10.seconds){
         case QueryActorRef(id) =>
-          probe.sender() ! ReplyActorRef(id,idMap(id))
-        case AmberControlMessage(_,_,_,ReturnEvent(context,value)) =>
-          assert(value == 1)
-          flag += 1
+          probe.sender() ! ReplyActorRef(id,map(id))
+        case InternalControlMessage(_,_,_,ReturnEvent(context,value)) =>
+          assert(value.asInstanceOf[String] == "finished")
         case other =>
         //skip
       }
-      if(flag != 1){
-        throw new AssertionError()
+    }
+
+
+    "recover with data messages" in {
+      val probe = TestProbe()
+      val map = mutable.HashMap[Identifier,ActorRef]()
+      for(i <- 0 until 4){
+        val ref = probe.childActorOf(Props(new PromiseTester(ActorIdentifier(i),true)))
+        map(ActorIdentifier(i)) = ref
+      }
+      map(Identifier.Client) = probe.ref
+      (0 to 1000).foreach{
+        i =>
+          probe.send(map(ActorIdentifier(0)),InternalDataMessage(Identifier.Client,i,i, InternalPayload(Array(ITuple(i)))))
+      }
+
+      FuturePool.unboundedPool{
+        (5 until 6).foreach{
+          i =>
+            val evt = Collect((1 to 3).map(ActorIdentifier(_)))
+            val ctrl = PromiseInvocation(mkPromiseContext(i),evt)
+            probe.send(map(ActorIdentifier(0)),InternalControlMessage(Identifier.Client,i,1000+i,ctrl))
+            Thread.sleep(1000)
+        }
+      }
+      probe.receiveWhile(5.minutes,20.seconds){
+        case QueryActorRef(id) =>
+          probe.sender() ! ReplyActorRef(id,map(id))
+        case InternalControlMessage(_,_,_,ReturnEvent(context,value)) =>
+          assert(value.asInstanceOf[String] == "finished")
+        case other =>
+        //skip
       }
     }
+
 
   }
 

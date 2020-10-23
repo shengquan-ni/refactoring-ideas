@@ -1,13 +1,14 @@
 package engine.core.control.promise.utils
 
-import engine.common.identifier.AmberIdentifier
+import engine.common.identifier.Identifier
+import engine.core.control.ControlMessage
 import engine.core.control.promise.utils.PingPongHandler.{Ping, Pong}
 import engine.core.control.promise.{InternalPromise, PromiseHandler, PromiseManager, SynchronizedInvocation}
 
 object PingPongHandler{
-  case class Ping(i:Int, end:Int, to:AmberIdentifier) extends InternalPromise[Int]
+  case class Ping(i:Int, end:Int, to:Identifier) extends ControlMessage[Int]
 
-  case class Pong(i:Int, end:Int, to:AmberIdentifier) extends InternalPromise[Int] with SynchronizedInvocation
+  case class Pong(i:Int, end:Int, to:Identifier) extends ControlMessage[Int] with SynchronizedInvocation
 }
 
 
@@ -18,7 +19,7 @@ trait PingPongHandler extends PromiseHandler {
     case Ping(i,e,to) =>
       println(s"$i ping")
       if(i < e){
-        after(schedule(Pong(i+1,e,getLocalIdentifier), to)){
+        schedule(Pong(i+1,e,getLocalIdentifier), to).map{
           ret:Int =>
             println(s"$i ping replied with value $ret!")
             returning(ret)
@@ -29,7 +30,7 @@ trait PingPongHandler extends PromiseHandler {
     case Pong(i,e,to) =>
       println(s"$i pong")
       if(i < e){
-        after(schedule(Ping(i+1,e,getLocalIdentifier), to)){
+        schedule(Ping(i+1,e,getLocalIdentifier), to).map{
           ret:Int =>
             println(s"$i pong replied with value $ret!")
             returning(ret)

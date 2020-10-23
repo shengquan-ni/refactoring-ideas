@@ -1,3 +1,3 @@
 package engine.common.identifier
 
-case class ActorIdentifier(id:Long) extends AmberIdentifier
+case class ActorIdentifier(id:Long) extends Identifier

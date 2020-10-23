@@ -1,17 +1,17 @@
 package engine.common
 
-import engine.common.identifier.AmberIdentifier
+import engine.common.identifier.Identifier
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 object OrderingEnforcer{
-  def reorderMessage[V: ClassTag](seqMap:mutable.AnyRefMap[AmberIdentifier,OrderingEnforcer[V]], sender: AmberIdentifier, seq:Long, command: V): Iterable[V] ={
+  def reorderMessage[V: ClassTag](seqMap:mutable.AnyRefMap[Identifier,OrderingEnforcer[V]], sender: Identifier, seq:Long, command: V): Option[Iterable[V]] ={
     val entry = seqMap.getOrElseUpdate(sender,new OrderingEnforcer[V]())
     if(entry.ifDuplicated(seq)){
-      Iterable.empty
+      None
     }else{
-      entry.enforceFIFO(seq,command)
+      Some(entry.enforceFIFO(seq,command))
     }
   }
 }
@@ -23,7 +23,7 @@ class OrderingEnforcer[T:ClassTag] {
   var current = 0L
   val ofoMap = new mutable.LongMap[T]
 
-  def ifDuplicated(sequenceNumber:Long):Boolean = sequenceNumber < current
+  def ifDuplicated(sequenceNumber:Long):Boolean = sequenceNumber < current || ofoMap.contains(sequenceNumber)
 
   def enforceFIFO(sequenceNumber:Long, data:T): Array[T] ={
     if(sequenceNumber == current){
