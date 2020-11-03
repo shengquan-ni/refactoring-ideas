@@ -1,5 +1,3 @@
 package engine.event
 
-trait DataEvent extends Serializable {
-
-}
+trait DataEvent extends Serializable {}

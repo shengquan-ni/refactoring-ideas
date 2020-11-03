@@ -1,5 +1,3 @@
 package engine.event
 
-trait ControlEvent extends Serializable {
-
-}
+trait ControlEvent extends Serializable {}

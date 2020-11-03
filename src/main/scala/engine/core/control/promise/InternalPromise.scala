@@ -1,11 +1,11 @@
 package engine.core.control.promise
 import com.twitter.util.Promise
 
-object InternalPromise{
-  def apply[T](ctx:PromiseContext): InternalPromise[T] = new InternalPromise[T](ctx)
+object InternalPromise {
+  def apply[T](ctx: PromiseContext): InternalPromise[T] = new InternalPromise[T](ctx)
 }
 
-class InternalPromise[T](val ctx:PromiseContext) extends Promise[T]{
+class InternalPromise[T](val ctx: PromiseContext) extends Promise[T] {
 
   type returnType = T
 

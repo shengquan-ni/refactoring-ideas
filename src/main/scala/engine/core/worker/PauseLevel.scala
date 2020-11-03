@@ -1,6 +1,6 @@
 package engine.core.worker
 
-object PauseLevel{
+object PauseLevel {
   final val No = 0
   final val BackPressure = 1
   final val Breakpoint = 2

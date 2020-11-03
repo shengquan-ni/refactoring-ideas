@@ -1,3 +1,3 @@
 package engine.core.control.promise
 
-case class ReturnEvent(context: PromiseContext, returnValue:Any) extends PromiseEvent
+case class ReturnEvent(context: PromiseContext, returnValue: Any) extends PromiseEvent

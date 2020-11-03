@@ -11,24 +11,28 @@ import engine.message.InternalFIFOMessage
 
 import scala.collection.mutable
 
-object DataInputChannel{
-  final case class InternalDataMessage(from:Identifier, sequenceNumber: Long, messageIdentifier: Long, command: DataEvent) extends InternalFIFOMessage
+object DataInputChannel {
+  final case class InternalDataMessage(
+    from: Identifier,
+    sequenceNumber: Long,
+    messageIdentifier: Long,
+    command: DataEvent,
+  ) extends InternalFIFOMessage
 }
-
 
 trait DataInputChannel {
   this: InternalActor with CoreProcessingUnit =>
 
-  private val dataOrderingEnforcer = new mutable.AnyRefMap[Identifier,OrderingEnforcer[DataEvent]]()
+  private val dataOrderingEnforcer =
+    new mutable.AnyRefMap[Identifier, OrderingEnforcer[DataEvent]]()
 
-  def receiveDataMessage:Receive = {
-    case InternalDataMessage(from,seq,messageID,cmd) =>
-      sender ! DataMessageAck(messageID)
-      OrderingEnforcer.reorderMessage(dataOrderingEnforcer,from,seq,cmd) match{
-        case Some(iterable) =>
-          iterable.foreach(consume)
-        case None =>
-          // discard duplicate
-      }
+  def receiveDataMessage: Receive = { case InternalDataMessage(from, seq, messageID, cmd) =>
+    sender ! DataMessageAck(messageID)
+    OrderingEnforcer.reorderMessage(dataOrderingEnforcer, from, seq, cmd) match {
+      case Some(iterable) =>
+        iterable.foreach(consume)
+      case None =>
+      // discard duplicate
+    }
   }
 }

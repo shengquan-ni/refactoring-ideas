@@ -4,32 +4,48 @@ import java.util.concurrent.Executors
 
 import engine.breakpoint.BreakpointException
 import engine.common.ITuple
-import engine.core.data.DataTransferPolicy
-import engine.core.worker.utils.{PauseSupport, RecoverySupport}
-import engine.event.{DataEvent, InternalPayload}
-import engine.core.worker.PauseLevel._
+import engine.common.identifier.Identifier
+import engine.core.InternalActor
+import engine.core.control.ControlOutputChannel
+import engine.message.handlers.BreakpointHandler.BreakpointTriggered
+import engine.message.handlers.InternalExceptionHandler.InternalException
+import engine.core.control.promise.{
+  PromiseBody,
+  PromiseContext,
+  PromiseInvocation,
+  PromiseManager,
+}
+import engine.core.data.{ DataOutputChannel, DataTransferPolicy }
+import engine.core.worker.utils.{ PauseSupport, RecoverySupport }
+import engine.event.{ DataEvent, InternalPayload }
 
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 import scala.util.control.Breaks
 
-trait CoreProcessingUnit{
-  this:PauseSupport with RecoverySupport =>
+trait CoreProcessingUnit {
+  this: PauseSupport
+    with RecoverySupport
+    with DataOutputChannel
+    with ControlOutputChannel
+    with InternalActor
+    with PromiseManager =>
 
-  val coreLogic:IOperatorExecutor
+  val coreLogic: IOperatorExecutor
 
   // DP Thread
-  val dataProcessExecutor: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
+  val dataProcessExecutor: ExecutionContextExecutor =
+    ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
   // Event Queue
   val processingQueue = new mutable.ArrayDeque[Iterator[ITuple]]
   var currentConsumingTuple: ITuple = _
   var processedCount: Long = 0L
   var generatedCount: Long = 0L
-  val outputPolicies =  new Array[DataTransferPolicy](0)
-  var outputIterator:Iterator[ITuple] = _
+  val outputPolicies = new Array[DataTransferPolicy](0)
+  var outputIterator: Iterator[ITuple] = _
   val outputtedTuples: mutable.ArrayBuffer[ITuple] = mutable.ArrayBuffer[ITuple]()
 
-  def consume(evt:DataEvent): Unit ={
+  def consume(evt: DataEvent): Unit = {
     evt match {
       case InternalPayload(tuples) =>
         synchronized {
@@ -37,13 +53,15 @@ trait CoreProcessingUnit{
           tryActivate()
         }
       case others =>
-        //skip
+      //skip
     }
   }
 
   def tryActivate(): Unit = {
-    if (isDpThreadReadyToStart &&
-      processingQueue.nonEmpty) {
+    if (
+      isDpThreadReadyToStart &&
+      processingQueue.nonEmpty
+    ) {
       Future {
         //If activated, reset variables
         setDpThreadStarted()
@@ -82,42 +100,49 @@ trait CoreProcessingUnit{
 
   private def consumeOneTuple(tuple: ITuple): Unit = {
     try {
-      outputIterator =
-        if(tuple != null){
-          coreLogic.processTuple(Left(tuple),0)
-        }else{
-          coreLogic.processTuple(Right(InputExhausted()),0)
-        }
+      outputIterator = if (tuple != null) {
+        coreLogic.processTuple(Left(tuple), 0)
+      } else {
+        coreLogic.processTuple(Right(InputExhausted()), 0)
+      }
     } catch {
       case other: Throwable =>
         println(s"exception thrown during processing $tuple :\n $other")
+        reportToControllerAndBreak(InternalException(other), PauseLevel.CoreException)
     }
   }
 
   private def outputTuples(): Unit = {
-    if(outputIterator == null) return
+    if (outputIterator == null) return
     var canContinue = true
     while (canContinue) {
       try {
         canContinue = outputIterator.hasNext
-        if(canContinue){
+        if (canContinue) {
           val nextTuple = outputIterator.next()
           //TODO: add breakpoint check here
-          if(nextTuple != null){
+          if (nextTuple != null) {
             outputtedTuples.addOne(nextTuple)
             generatedCount += 1
           }
         }
       } catch {
-        case bp:BreakpointException =>
+        case bp: BreakpointException =>
           println(s"breakpoint triggered: $bp")
-        case other:Throwable =>
+          reportToControllerAndBreak(BreakpointTriggered(), PauseLevel.Breakpoint)
+        case other: Throwable =>
           canContinue = false
           println(s"exception thrown during outputting tuples :\n $other")
+          reportToControllerAndBreak(InternalException(other), PauseLevel.CoreException)
       }
       exitIfInterrupted()
     }
-    //TODO: add outputtedTuples to downstream
+    // add outputtedTuples to downstream
+    outputPolicies.foreach { policy =>
+      policy.consumeTuples(outputtedTuples).foreach { case (to, data) =>
+        sendTo(to, data)
+      }
+    }
     outputtedTuples.clear()
   }
 
@@ -141,5 +166,9 @@ trait CoreProcessingUnit{
     }
   }
 
+  private def reportToControllerAndBreak(message: PromiseBody[_], pauseLevel: Int): Unit = {
+    schedule(message, Identifier.Controller)
+    setPauseLevelAndBreak(pauseLevel)
+  }
 
 }

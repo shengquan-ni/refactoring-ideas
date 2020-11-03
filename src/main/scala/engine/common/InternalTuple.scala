@@ -1,6 +1,6 @@
 package engine.common
 
-class InternalTuple(val data:Array[Any])extends ITuple {
+class InternalTuple(val data: Array[Any]) extends ITuple {
 
   override def length: Int = data.length
 

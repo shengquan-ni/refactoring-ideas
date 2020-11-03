@@ -1,39 +1,26 @@
-package engine.core.control.promise.utils
+package engine.core.worker
 
-import engine.common.{ ITuple, OrderingEnforcer }
 import engine.common.identifier.Identifier
 import engine.core.InternalActor
 import engine.core.control.ControlInputChannel.InternalControlMessage
-import engine.core.control.ControlOutputChannel.ControlMessageAck
 import engine.core.control.{ ControlInputChannel, ControlOutputChannel }
-import engine.core.control.promise.{ PromiseEvent, PromiseManager }
-import engine.core.network.NetworkOutputLayer
+import engine.core.control.ControlOutputChannel.ControlMessageAck
+import engine.core.control.promise.PromiseManager
 import engine.core.data.{ DataInputChannel, DataOutputChannel }
+import engine.core.network.NetworkOutputLayer
 import engine.core.worker.utils.{ PauseSupport, RecoverySupport }
-import engine.core.worker.{
-  CoreProcessingUnit,
-  IOperatorExecutor,
-  InputExhausted,
-  PauseLevel,
-  WorkerRecovery,
-}
 import engine.event.ControlEvent
 import engine.message.ControlRecovery.RecoveryCompleted
 
-class PromiseTester(val amberID: Identifier, val withRecovery: Boolean = false)
-  extends InternalActor
+class WorkerActor(
+  val amberID: Identifier,
+  val coreLogic: IOperatorExecutor,
+  val withRecovery: Boolean = false,
+) extends InternalActor
   with ControlInputChannel
   with ControlOutputChannel
   with NetworkOutputLayer
   with PromiseManager
-  with NestedHandler
-  with PingPongHandler
-  with RecursionHandler
-  with CollectHandler
-  with ChainHandler
-  with DummyState
-  with SubPromiseHandler
-  with ExampleHandler
   with WorkerRecovery
   with CoreProcessingUnit
   with PauseSupport
@@ -45,25 +32,6 @@ class PromiseTester(val amberID: Identifier, val withRecovery: Boolean = false)
     triggerRecovery()
   } else {
     resetRecovery()
-  }
-
-  override val coreLogic: IOperatorExecutor = new IOperatorExecutor {
-    override def open(): Unit = {}
-
-    override def close(): Unit = {}
-
-    override def processTuple(
-      tuple: Either[ITuple, InputExhausted],
-      input: Int,
-    ): Iterator[ITuple] = {
-      tuple match {
-        case Left(value) =>
-          Thread.sleep(10)
-          Iterator(value)
-        case Right(value) =>
-          Iterator.empty
-      }
-    }
   }
 
   coreLogic.open()

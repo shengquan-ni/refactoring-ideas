@@ -3,18 +3,17 @@ package engine.common
 import collection.JavaConverters._
 import scala.util.hashing.MurmurHash3
 
-object ITuple{
+object ITuple {
   def apply(values: Any*): ITuple = new InternalTuple(values.toArray)
   def fromSeq(values: Seq[Any]): ITuple = new InternalTuple(values.toArray)
   def fromIterable(values: Iterable[Any]): ITuple = new InternalTuple(values.toArray)
   def fromJavaArray(values: Array[Any]) = new InternalTuple(values)
-  def fromJavaList(values: java.util.List[Any]):ITuple = new InternalTuple(values.asScala.toArray)
+  def fromJavaList(values: java.util.List[Any]): ITuple = new InternalTuple(values.asScala.toArray)
   val empty = apply()
-
 
 }
 
-trait ITuple extends Serializable{
+trait ITuple extends Serializable {
   def size: Int = length
   def length: Int
   def apply(i: Int): Any = get(i)
@@ -37,7 +36,7 @@ trait ITuple extends Serializable{
   def getByte(i: Int): Byte = getAnyValAs[Byte](i)
   def getBoolean(i: Int): Boolean = getAnyValAs[Boolean](i)
 
-  def toArray():Array[Any]
+  def toArray(): Array[Any]
 
   override def hashCode: Int = {
     var n = 0
@@ -61,7 +60,6 @@ trait ITuple extends Serializable{
     values.toSeq
   }
 
-
   override def equals(o: Any): Boolean = {
     if (!o.isInstanceOf[ITuple]) return false
     val other = o.asInstanceOf[ITuple]
@@ -78,7 +76,7 @@ trait ITuple extends Serializable{
         return false
       }
       if (!isNullAt(i)) {
-        if(!get(i).equals(other.get(i)))
+        if (!get(i).equals(other.get(i)))
           return false
       }
       i += 1
@@ -86,7 +84,7 @@ trait ITuple extends Serializable{
     true
   }
 
-  def mkString:String = mkString(",")
+  def mkString: String = mkString(",")
 
   def mkString(sep: String): String = mkString("Tuple[", sep, "]")
 
@@ -114,4 +112,3 @@ trait ITuple extends Serializable{
     else getAs[T](i)
 
 }
-
