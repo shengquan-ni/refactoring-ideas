@@ -3,14 +3,15 @@ package engine.core.worker
 import engine.common.identifier.Identifier
 import engine.core.InternalActor
 import engine.core.control.ControlInputChannel.InternalControlMessage
-import engine.core.control.{ ControlInputChannel, ControlOutputChannel }
+import engine.core.control.{ControlInputChannel, ControlOutputChannel}
 import engine.core.control.ControlOutputChannel.ControlMessageAck
 import engine.core.control.promise.PromiseManager
-import engine.core.data.{ DataInputChannel, DataOutputChannel }
+import engine.core.data.{DataInputChannel, DataOutputChannel}
 import engine.core.network.NetworkOutputLayer
-import engine.core.worker.utils.{ PauseSupport, RecoverySupport }
+import engine.core.worker.utils.{PauseSupport, RecoverySupport}
 import engine.event.ControlEvent
 import engine.message.ControlRecovery.RecoveryCompleted
+import engine.operator.IOperatorExecutor
 
 class WorkerActor(
   val amberID: Identifier,
@@ -35,10 +36,6 @@ class WorkerActor(
   }
 
   coreLogic.open()
-
-  def ignoreOthers: Receive = { case msg =>
-    log.info(s"Ignored message: $msg")
-  }
 
   def stashControlMessages: Receive = { case InternalControlMessage(_, _, messageID, _) =>
     sender ! ControlMessageAck(messageID)

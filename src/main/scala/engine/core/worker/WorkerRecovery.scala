@@ -16,9 +16,7 @@ import engine.message.ControlRecovery.RecoveryCompleted
 import scala.collection.mutable
 
 object WorkerRecovery {
-
   case class RecoveryPacket(cursor: Long, msg: InternalControlMessage)
-
 }
 
 trait WorkerRecovery extends ControlRecovery {
@@ -27,8 +25,6 @@ trait WorkerRecovery extends ControlRecovery {
   protected val messageToBeRecovered: mutable.Map[Long, Array[InternalControlMessage]] =
     mutable.LongMap[Array[InternalControlMessage]]()
   private val sentMessageIDs: mutable.HashSet[Long] = mutable.HashSet[Long]()
-  private val stashedControlMessages: mutable.ArrayBuffer[InternalControlMessage] =
-    mutable.ArrayBuffer[InternalControlMessage]()
 
   private val instantiator = new ScalaKryoInstantiator
   instantiator.setRegistrationRequired(false)

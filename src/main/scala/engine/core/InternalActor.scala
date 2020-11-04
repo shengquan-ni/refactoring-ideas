@@ -7,4 +7,8 @@ import engine.message.ControlRecovery
 trait InternalActor extends Actor with ActorLogging with Stash with Serializable {
   val amberID: Identifier
 
+  def ignoreOthers: Receive = { case msg =>
+    log.info(s"Ignored message: $msg")
+  }
+
 }

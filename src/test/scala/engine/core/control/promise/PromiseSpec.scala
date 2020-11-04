@@ -7,7 +7,7 @@ import akka.testkit.{ TestKit, TestProbe }
 import com.esotericsoftware.kryo.{ Kryo, KryoException }
 import com.esotericsoftware.kryo.io.Input
 import com.twitter.util.FuturePool
-import engine.clustering.SingleNodeListener
+import clustering.SingleNodeListener
 import engine.common.ITuple
 import engine.common.identifier.{ ActorIdentifier, Identifier }
 import engine.core.control.ControlInputChannel.InternalControlMessage

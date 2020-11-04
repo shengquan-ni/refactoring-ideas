@@ -1,7 +1,7 @@
-package engine.clustering
+package clustering
 
 import akka.actor.{ Actor, ActorLogging }
-import engine.clustering.ClusterListener.GetAvailableNodeAddresses
+import clustering.ClusterListener.GetAvailableNodeAddresses
 import engine.common.Constants
 
 class SingleNodeListener extends Actor with ActorLogging {

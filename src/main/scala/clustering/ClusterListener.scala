@@ -1,4 +1,4 @@
-package engine.clustering
+package clustering
 
 import akka.actor.{ Actor, ActorLogging, Address, ExtendedActorSystem }
 import akka.cluster.{ Cluster, Member }

@@ -1,24 +1,19 @@
 package engine.core.control.promise.utils
 
-import engine.common.{ ITuple, OrderingEnforcer }
+import engine.common.{ITuple, OrderingEnforcer}
 import engine.common.identifier.Identifier
 import engine.core.InternalActor
 import engine.core.control.ControlInputChannel.InternalControlMessage
 import engine.core.control.ControlOutputChannel.ControlMessageAck
-import engine.core.control.{ ControlInputChannel, ControlOutputChannel }
-import engine.core.control.promise.{ PromiseEvent, PromiseManager }
+import engine.core.control.{ControlInputChannel, ControlOutputChannel}
+import engine.core.control.promise.{PromiseEvent, PromiseManager}
 import engine.core.network.NetworkOutputLayer
-import engine.core.data.{ DataInputChannel, DataOutputChannel }
-import engine.core.worker.utils.{ PauseSupport, RecoverySupport }
-import engine.core.worker.{
-  CoreProcessingUnit,
-  IOperatorExecutor,
-  InputExhausted,
-  PauseLevel,
-  WorkerRecovery,
-}
+import engine.core.data.{DataInputChannel, DataOutputChannel}
+import engine.core.worker.utils.{PauseSupport, RecoverySupport}
+import engine.core.worker.{CoreProcessingUnit, InputExhausted, PauseLevel, WorkerRecovery}
 import engine.event.ControlEvent
 import engine.message.ControlRecovery.RecoveryCompleted
+import engine.operator.{IOperatorExecutor, InputExhausted}
 
 class PromiseTester(val amberID: Identifier, val withRecovery: Boolean = false)
   extends InternalActor

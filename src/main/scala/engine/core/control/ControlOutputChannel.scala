@@ -23,6 +23,11 @@ trait ControlOutputChannel {
   private var controlUUID = 0L
   private val controlMessageInTransit = mutable.LongMap[InternalFIFOMessage]()
 
+  /**Note that although this function will be called from either DP thread or Main thread,
+   * they are prohibited to call this function concurrently since Main thread will pause
+   * DP thread before processing next control message. So we can guarantee DP thread is not
+   * alive while Main thread is sending control messages. Vice versa.
+   */
   def sendTo(to: Identifier, event: ControlEvent): Unit = {
     if (to == Identifier.None) {
       return

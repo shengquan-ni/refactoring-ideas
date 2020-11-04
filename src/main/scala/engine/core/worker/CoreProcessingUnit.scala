@@ -9,18 +9,14 @@ import engine.core.InternalActor
 import engine.core.control.ControlOutputChannel
 import engine.message.handlers.BreakpointHandler.BreakpointTriggered
 import engine.message.handlers.InternalExceptionHandler.InternalException
-import engine.core.control.promise.{
-  PromiseBody,
-  PromiseContext,
-  PromiseInvocation,
-  PromiseManager,
-}
-import engine.core.data.{ DataOutputChannel, DataTransferPolicy }
-import engine.core.worker.utils.{ PauseSupport, RecoverySupport }
-import engine.event.{ DataEvent, InternalPayload }
+import engine.core.control.promise.{PromiseBody, PromiseContext, PromiseInvocation, PromiseManager}
+import engine.core.data.{DataOutputChannel, DataTransferPolicy}
+import engine.core.worker.utils.{PauseSupport, RecoverySupport}
+import engine.event.{DataEvent, InternalPayload}
+import engine.operator.{IOperatorExecutor, InputExhausted}
 
 import scala.collection.mutable
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.control.Breaks
 
 trait CoreProcessingUnit {
